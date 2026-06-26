@@ -1,0 +1,22 @@
+        body { background-color: #8f9f84; color: #4a4132; }
+        .soft-shadow { box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.05), -4px -4px 15px rgba(255, 255, 255, 0.4); transition: all 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-4px); box-shadow: 6px 6px 20px rgba(0, 0, 0, 0.08), -6px -6px 20px rgba(255, 255, 255, 0.5); }
+        .inner-shadow { box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.05), inset -2px -2px 5px rgba(255, 255, 255, 0.5); }
+        .rounded-4xl { border-radius: 2rem; }
+        
+        /* Custom Input Styling */
+        .form-control-custom {
+            background-color: #f5eedf;
+            border: 2px solid transparent;
+            color: #4a4132;
+        }
+        .form-control-custom:focus {
+            background-color: #ffffff;
+            border-color: #5d7f54;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(93, 127, 84, 0.1);
+        }
+        .form-control-custom::placeholder {
+            color: #8c8069;
+            opacity: 0.7;
+        }

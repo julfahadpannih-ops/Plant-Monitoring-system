@@ -1,0 +1,58 @@
+        body { background-color: #8f9f84; color: #4a4132; }
+        .soft-shadow { box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.05), -4px -4px 15px rgba(255, 255, 255, 0.4); transition: all 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-4px); box-shadow: 6px 6px 20px rgba(0, 0, 0, 0.08), -6px -6px 20px rgba(255, 255, 255, 0.5); }
+        .inner-shadow { box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.05), inset -2px -2px 5px rgba(255, 255, 255, 0.5); }
+        .rounded-4xl { border-radius: 2rem; }
+        .bar { width: 12px; border-radius: 6px; background: #5d7f54; transition: height 0.5s ease; }
+        .bar.orange { background: #c87c46; }
+        .bar.light { background: #cebc9f; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cebc9f; border-radius: 10px; }
+
+        /* --- ADDED: Smooth Entry Animations for Logs --- */
+        @keyframes smoothEntry {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .log-item-animate { 
+            animation: smoothEntry 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; 
+            opacity: 0; /* Ensures it starts invisible before animation */
+        }
+        #main-log-container, #records-container { 
+            scroll-behavior: smooth; 
+        }
+
+        /* --- ADDED: Fix for Layout Breaking When Log is Full (Anti-Overflow) --- */
+        #main-log-container {
+            max-height: 350px; /* Constrains height on mobile so it scrolls instead of stretching */
+        }
+        @media (min-width: 1024px) {
+            #main-log-container {
+                flex-basis: 0 !important; /* Forces flex child to respect parent height on desktop */
+                max-height: none;
+            }
+        }
+        #records-container {
+            flex-basis: 0 !important;
+            max-height: calc(100vh - 130px); /* Strictly constrains slide-out panel to prevent stretching */
+        }
+
+        /* --- ADDED: Professional Chatbot Styles --- */
+        #chat-widget { 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            transform: translateY(120%) scale(0.9); 
+            opacity: 0; 
+            pointer-events: none;
+        }
+        #chat-widget.active { 
+            transform: translateY(0) scale(1); 
+            opacity: 1; 
+            pointer-events: auto;
+        }
+        .chat-bubble-ai { background-color: #ffffff; color: #4a4132; border-bottom-left-radius: 4px; }
+        .chat-bubble-user { background-color: #5d7f54; color: #ffffff; border-bottom-right-radius: 4px; }
+        .typing-indicator span { display: inline-block; width: 6px; height: 6px; background-color: #8c8069; border-radius: 50%; animation: typing 1.4s infinite ease-in-out both; margin: 0 2px; }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
