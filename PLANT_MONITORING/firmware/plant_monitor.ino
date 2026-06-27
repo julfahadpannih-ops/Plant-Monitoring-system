@@ -23,9 +23,9 @@ const int64_t CHAT_ID = 0;                      // Replace with your Telegram ch
 #define SOIL_PIN 33
 #define RELAY_PIN 26
 
-// --- MGA BAGONG PINS PARA SA NPK ---
-#define RE_PIN 4    // Pin para sa Receive Enable
-#define DE_PIN 5    // Pin para sa Data Enable
+// --- NPK SENSOR PINS (RS-485 Modbus) ---
+#define RE_PIN 4    // Receive Enable pin
+#define DE_PIN 5    // Data Enable pin
 #define NPK_RX 16   
 #define NPK_TX 17   
 
@@ -43,16 +43,16 @@ bool notifiedTemp = false;
 bool telegramOnline = true;
 unsigned long lastUpdateID = 0;
 
-// --- BAGONG VARIABLES PARA SA COOLDOWN AT AI LOCKOUT ---
+// --- PUMP COOLDOWN & AI LOCKOUT VARIABLES ---
 unsigned long lastPumpTime = 0;
-const unsigned long PUMP_COOLDOWN = 10000; // 10 seconds cooldown para iwas on/off spam
-bool aiWatering = false; // Flag para malaman kung AI ang kumokontrol
+const unsigned long PUMP_COOLDOWN = 10000; // 10 seconds cooldown to prevent on/off spam
+bool aiWatering = false; // Flag to track whether AI is currently controlling the pump
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 DHT dht(DHTPIN, DHTTYPE);
 BlynkTimer timer;
 
-// Bagong NPK Inquiry Frame
+// NPK Modbus Inquiry Frame
 const byte npkInquiryFrame[] = {0x01, 0x03, 0x00, 0x1E, 0x00, 0x03, 0x65, 0xCD};
 byte npkValues[11];
 
@@ -60,25 +60,25 @@ byte npkValues[11];
 BLYNK_WRITE(V4) {
   int pinValue = param.asInt();
 
-  // 1. Kapag nag-a-auto pump ang AI, i-block ang manual button
+  // 1. Block manual button while AI is auto-watering
   if (aiWatering) {
     Serial.println("❌ Manual override rejected: AI is currently auto-watering.");
     sendTelegram("⚠️ Manual control disabled while AI is auto-watering.");
-    Blynk.virtualWrite(V4, 1); // I-force pabalik sa ON ang UI button
+    Blynk.virtualWrite(V4, 1); // Force UI button back to ON state
     return;
   }
 
-  // 2. Cooldown protection para sa manual spam
+  // 2. Cooldown protection to prevent manual spam
   if (millis() - lastPumpTime < PUMP_COOLDOWN) {
     Serial.println("⏳ Manual override rejected: Cooldown active.");
-    Blynk.virtualWrite(V4, relayState); // I-revert ang UI button state
+    Blynk.virtualWrite(V4, relayState); // Revert UI button to current state
     return;
   }
 
   relayState = (pinValue == 1);
   digitalWrite(RELAY_PIN, relayState ? LOW : HIGH);
   isManualMode = true;
-  lastPumpTime = millis(); // I-record ang oras ng pag-switch
+  lastPumpTime = millis(); // Record the time of the switch
   
   String msg = relayState ? "Manual Control: Pump ON" : "Manual Control: Pump OFF";
   sendTelegram(msg);
@@ -110,11 +110,11 @@ void readSensors() {
   // --- AUTOMATION LOGIC ---
   if (!isManualMode) {
     if (soilPercent < soilThreshold) {
-      // Check cooldown bago mag-ON
+      // Check cooldown before turning ON pump
       if (!relayState && (millis() - lastPumpTime >= PUMP_COOLDOWN)) {
         digitalWrite(RELAY_PIN, LOW);
         relayState = true;
-        aiWatering = true; // AI took control, i-lock ang manual
+        aiWatering = true; // AI took control, lock out manual
         lastPumpTime = millis();
         
         if (!notifiedDry) {
@@ -126,11 +126,11 @@ void readSensors() {
         }
       }
     } else if (soilPercent >= stableLevel) {
-      // Check cooldown bago mag-OFF
+      // Check cooldown before turning OFF pump
       if (relayState && (millis() - lastPumpTime >= PUMP_COOLDOWN)) {
         digitalWrite(RELAY_PIN, HIGH);
         relayState = false;
-        aiWatering = false; // AI released control, pwede na ulit mag-manual
+        aiWatering = false; // AI released control, manual mode available again
         lastPumpTime = millis();
         
         if (!notifiedStable) {
@@ -207,9 +207,9 @@ void handleTelegramCommands() {
   https.end();
 }
 
-// ---------------- NPK LOGIC (UPDATED) ----------------
+// ---------------- NPK LOGIC ----------------
 void readNPK() {
-  // 1. I-set sa TRANSMIT MODE bago magpadala ng command (parehong HIGH)
+  // 1. Set to TRANSMIT MODE before sending command (both pins HIGH)
   digitalWrite(RE_PIN, HIGH);
   digitalWrite(DE_PIN, HIGH); 
   delay(10);
@@ -217,11 +217,11 @@ void readNPK() {
   Serial2.write(npkInquiryFrame, sizeof(npkInquiryFrame));
   Serial2.flush(); 
   
-  // 2. I-set pabalik sa RECEIVE MODE para hintayin ang sagot ng sensor (parehong LOW)
+  // 2. Switch back to RECEIVE MODE to wait for sensor response (both pins LOW)
   digitalWrite(RE_PIN, LOW);
   digitalWrite(DE_PIN, LOW); 
   
-  // Hintayin ang data (up to 1000ms timeout para iwas hang)
+  // Wait for data (up to 1000ms timeout to prevent hang)
   unsigned long startTime = millis();
   while(Serial2.available() < 11 && millis() - startTime < 1000) {
     delay(10);
@@ -232,7 +232,7 @@ void readNPK() {
       npkValues[i] = Serial2.read();
     }
     
-    // Kunin ang NPK values
+    // Extract NPK values from response bytes
     nitrogen = (npkValues[3] << 8) | npkValues[4];
     phosphorus = (npkValues[5] << 8) | npkValues[6];
     potassium = (npkValues[7] << 8) | npkValues[8];
@@ -243,14 +243,14 @@ void readNPK() {
     Serial.print("Potassium (K): "); Serial.print(potassium); Serial.println(" mg/kg");
     Serial.println("--------------------------");
     
-    // I-send ang bagong NPK data sa Blynk!
+    // Send updated NPK data to Blynk
     Blynk.virtualWrite(V5, nitrogen);
     Blynk.virtualWrite(V6, phosphorus);
     Blynk.virtualWrite(V7, potassium);
   } else {
-    // Clear buffer kung nag-timeout o kulang ang data
+    // Clear buffer on timeout or incomplete data
     while(Serial2.available()) Serial2.read();
-    Serial.println("\n[ERROR] Timeout: Walang na-detect na NPK data. Check wiring at RE/DE pins.");
+    Serial.println("\n[ERROR] Timeout: No NPK data received. Check wiring and RE/DE pins.");
   }
 }
 
@@ -262,11 +262,11 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH);
   
-  // Setup para sa RE at DE Pins ng NPK
+  // Setup RE and DE pins for NPK RS-485 communication
   pinMode(RE_PIN, OUTPUT);
   pinMode(DE_PIN, OUTPUT);
   
-  // I-set sa RECEIVE MODE by default (parehong LOW)
+  // Set to RECEIVE MODE by default (both pins LOW)
   digitalWrite(RE_PIN, LOW); 
   digitalWrite(DE_PIN, LOW); 
   
